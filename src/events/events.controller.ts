@@ -24,11 +24,6 @@ export class EventsController {
     @Query('accessToken') accessToken?: string,
   ) {
     try {
-      console.log('🎯 Controller: Create event called');
-      console.log('📝 Request body:', createEventDto);
-      console.log('🔑 Access token from query:', accessToken ? 'Present' : 'Missing');
-      console.log('🔑 Token value:', accessToken);
-
       const event = await this.eventsService.createEvent(createEventDto, accessToken);
       return {
         success: true,
@@ -36,7 +31,6 @@ export class EventsController {
         message: 'Event created successfully',
       };
     } catch (error) {
-      console.error('❌ Controller error:', error);
       throw new HttpException(
         'Failed to create event',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -46,23 +40,18 @@ export class EventsController {
 
   @Get()
   async getAllEvents(@Query('userId') userId: string) {
-    console.log('🚀 GET /events called with userId:', userId);
-
     if (!userId) {
-      console.log('❌ No userId provided');
       throw new HttpException('userId is required', HttpStatus.BAD_REQUEST);
     }
 
     try {
       const events = await this.eventsService.findAllEvents(userId);
-      console.log('✅ Successfully fetched events:', events.length);
       return {
         success: true,
         data: events,
         count: events.length,
       };
     } catch (error) {
-      console.error('❌ Controller error:', error);
       throw new HttpException(
         `Failed to fetch events: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -101,11 +90,6 @@ export class EventsController {
     @Query('accessToken') accessToken?: string,
   ) {
     try {
-      console.log('🎯 Controller: Update event called');
-      console.log('🆔 Event ID:', id);
-      console.log('📝 Update data:', updateEventDto);
-      console.log('🔑 Access token from query:', accessToken ? 'Present' : 'Missing');
-
       const event = await this.eventsService.updateEvent(id, updateEventDto, accessToken);
 
       if (!event) {
@@ -121,7 +105,6 @@ export class EventsController {
       if (error instanceof HttpException) {
         throw error;
       }
-      console.error('❌ Controller error:', error);
       throw new HttpException(
         'Failed to update event',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -135,10 +118,6 @@ export class EventsController {
     @Query('accessToken') accessToken?: string,
   ) {
     try {
-      console.log('🎯 Controller: Delete event called');
-      console.log('🆔 Event ID:', id);
-      console.log('🔑 Access token from query:', accessToken ? 'Present' : 'Missing');
-
       const deleted = await this.eventsService.deleteEvent(id, accessToken);
 
       if (!deleted) {
@@ -153,7 +132,6 @@ export class EventsController {
       if (error instanceof HttpException) {
         throw error;
       }
-      console.error('❌ Controller error:', error);
       throw new HttpException(
         'Failed to delete event',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -174,17 +152,12 @@ export class EventsController {
     }
 
     try {
-      console.log('🎯 Controller: Sync from Google called');
-      console.log('👤 User ID:', userId);
-      console.log('🔑 Access token:', accessToken ? 'Present' : 'Missing');
-
       await this.eventsService.syncFromGoogleCalendar(userId, accessToken);
       return {
         success: true,
         message: 'Events synced from Google Calendar successfully',
       };
     } catch (error) {
-      console.error('❌ Sync controller error:', error);
       throw new HttpException(
         'Failed to sync from Google Calendar',
         HttpStatus.INTERNAL_SERVER_ERROR,

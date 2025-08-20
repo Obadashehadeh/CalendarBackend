@@ -20,10 +20,8 @@ export class FirebaseService {
           credential: admin.credential.cert(serviceAccount),
           projectId: this.configService.get('FIREBASE_PROJECT_ID'),
         });
-
-        console.log('✅ Firebase initialized successfully');
       } catch (error) {
-        console.error('❌ Firebase initialization failed:', error.message);
+        throw new Error('Firebase initialization failed');
       }
     }
   }
@@ -34,7 +32,7 @@ export class FirebaseService {
 
   async testConnection(): Promise<string> {
     try {
-      const testDoc = await this.db.collection('test').doc('connection').set({
+      await this.db.collection('test').doc('connection').set({
         message: 'Firebase connected successfully!',
         timestamp: new Date(),
       });
