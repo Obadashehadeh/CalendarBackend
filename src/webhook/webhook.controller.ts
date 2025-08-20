@@ -5,7 +5,6 @@ import {
   Headers,
   HttpStatus,
   HttpException,
-  Logger,
   Get,
   Query,
 } from '@nestjs/common';
@@ -14,8 +13,6 @@ import { EventsService } from '../events/events.service';
 
 @Controller('webhook')
 export class WebhookController {
-  private readonly logger = new Logger(WebhookController.name);
-
   constructor(
     private readonly webhookService: WebhookCalendarService,
     private readonly eventsService: EventsService,
@@ -27,9 +24,6 @@ export class WebhookController {
     @Headers() headers: any,
   ) {
     try {
-      this.logger.log(`Received webhook for user: ${userId}`);
-      this.logger.log(`Headers: ${JSON.stringify(headers)}`);
-
       await this.webhookService.handleWebhookNotification(
         userId,
         headers,
@@ -38,7 +32,6 @@ export class WebhookController {
 
       return { status: 'success' };
     } catch (error) {
-      this.logger.error(`Webhook processing failed: ${error.message}`);
       throw new HttpException(
         'Webhook processing failed',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -59,8 +52,6 @@ export class WebhookController {
         );
       }
 
-      this.logger.log(`Setting up webhook for user: ${userId}`);
-
       const channelId = await this.webhookService.setupCalendarWatch(
         accessToken,
         userId,
@@ -72,7 +63,6 @@ export class WebhookController {
         message: 'Webhook setup successful',
       };
     } catch (error) {
-      this.logger.error(`Webhook setup failed: ${error.message}`);
       throw new HttpException(
         `Webhook setup failed: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -96,7 +86,6 @@ export class WebhookController {
         })),
       };
     } catch (error) {
-      this.logger.error(`Failed to get webhook status: ${error.message}`);
       throw new HttpException(
         'Failed to get webhook status',
         HttpStatus.INTERNAL_SERVER_ERROR,

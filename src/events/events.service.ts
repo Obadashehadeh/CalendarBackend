@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { GoogleCalendarService } from '../google-calendar/google-calendar.service';
 import { Event } from './event.interface';
@@ -7,7 +7,6 @@ import { UpdateEventDto } from './dto/update-event.dto';
 
 @Injectable()
 export class EventsService {
-  private readonly logger = new Logger(EventsService.name);
   private readonly collectionName = 'events';
 
   constructor(
@@ -28,25 +27,18 @@ export class EventsService {
       isDeleted: false,
     };
 
-    this.logger.log(`Creating event: ${event.title}`);
-
     const docRef = await eventsCollection.add(event);
     const eventWithId = { ...event, id: docRef.id };
 
-    // Sync with Google Calendar if token provided
     if (accessToken) {
       try {
-        this.logger.log(`Syncing new event to Google Calendar: ${event.title}`);
         const googleEventId = await this.googleCalendarService.createGoogleEvent(
           eventWithId,
           accessToken,
         );
         await docRef.update({ googleCalendarId: googleEventId });
         eventWithId.googleCalendarId = googleEventId;
-        this.logger.log(`Successfully synced to Google Calendar with ID: ${googleEventId}`);
       } catch (error) {
-        this.logger.error(`Failed to sync event to Google Calendar: ${error.message}`);
-        // Don't throw error - event is still created locally
       }
     }
 
@@ -67,7 +59,6 @@ export class EventsService {
     }
 
     const currentEvent = doc.data() as Event;
-    this.logger.log(`Updating event: ${currentEvent.title}`);
 
     const updateData: any = {
       ...updateEventDto,
@@ -83,20 +74,15 @@ export class EventsService {
 
     await docRef.update(updateData);
 
-    // Sync with Google Calendar if linked
     if (currentEvent.googleCalendarId && accessToken) {
       try {
-        this.logger.log(`Syncing updated event to Google Calendar: ${currentEvent.googleCalendarId}`);
         const updatedEvent = { ...currentEvent, ...updateData, id };
         await this.googleCalendarService.updateGoogleEvent(
           currentEvent.googleCalendarId,
           updatedEvent,
           accessToken,
         );
-        this.logger.log(`Successfully updated Google Calendar event`);
       } catch (error) {
-        this.logger.error(`Failed to sync update to Google Calendar: ${error.message}`);
-        // Don't throw error - local update succeeded
       }
     }
 
@@ -114,26 +100,19 @@ export class EventsService {
     }
 
     const event = doc.data() as Event;
-    this.logger.log(`Deleting event: ${event.title}`);
 
-    // Mark as deleted instead of actual deletion for sync purposes
     await docRef.update({
       isDeleted: true,
       updatedAt: new Date(),
     });
 
-    // Delete from Google Calendar if linked
     if (event.googleCalendarId && accessToken) {
       try {
-        this.logger.log(`Deleting from Google Calendar: ${event.googleCalendarId}`);
         await this.googleCalendarService.deleteGoogleEvent(
           event.googleCalendarId,
           accessToken,
         );
-        this.logger.log(`Successfully deleted from Google Calendar`);
       } catch (error) {
-        this.logger.error(`Failed to delete from Google Calendar: ${error.message}`);
-        // Don't throw error - local deletion succeeded
       }
     }
 
@@ -141,21 +120,15 @@ export class EventsService {
   }
 
   async syncFromGoogleCalendar(userId: string, accessToken: string): Promise<void> {
-    this.logger.log(`Starting Google Calendar sync for user: ${userId}`);
-
     try {
-      // Fetch events from Google Calendar
       const googleEvents = await this.googleCalendarService.fetchGoogleEvents(
         accessToken,
         userId,
       );
 
-      this.logger.log(`Fetched ${googleEvents.length} events from Google Calendar`);
-
       const db = this.firebaseService.getFirestore();
       const eventsCollection = db.collection(this.collectionName);
 
-      // Get all existing events for this user
       const existingSnapshot = await eventsCollection
         .where('userId', '==', userId)
         .get();
@@ -168,31 +141,19 @@ export class EventsService {
         }
       });
 
-      this.logger.log(`Found ${existingEvents.size} existing events with Google Calendar IDs`);
-
-      // Get current Google Calendar event IDs
       const googleEventIds = new Set(googleEvents.map(e => e.googleCalendarId));
 
-      let addedCount = 0;
-      let updatedCount = 0;
-      let deletedCount = 0;
-
-      // Process Google Calendar events
       for (const googleEvent of googleEvents) {
         const existingEvent = existingEvents.get(googleEvent.googleCalendarId);
 
         if (!existingEvent) {
-          // New event from Google - add it
           await eventsCollection.add({
             ...googleEvent,
             createdAt: new Date(),
             updatedAt: new Date(),
             isDeleted: false,
           });
-          addedCount++;
-          this.logger.log(`Added new event from Google: ${googleEvent.title}`);
         } else {
-          // Event exists - always update to ensure sync
           await eventsCollection.doc(existingEvent.id).update({
             title: googleEvent.title,
             description: googleEvent.description,
@@ -201,27 +162,19 @@ export class EventsService {
             updatedAt: new Date(),
             isDeleted: false,
           });
-          updatedCount++;
-          this.logger.log(`Updated event from Google: ${googleEvent.title}`);
         }
       }
 
-      // Mark events as deleted if they no longer exist in Google Calendar
       for (const [googleCalendarId, localEvent] of existingEvents) {
         if (!googleEventIds.has(googleCalendarId) && !localEvent.isDeleted) {
           await eventsCollection.doc(localEvent.id).update({
             isDeleted: true,
             updatedAt: new Date(),
           });
-          deletedCount++;
-          this.logger.log(`Marked event as deleted: ${localEvent.title}`);
         }
       }
 
-      this.logger.log(`Sync completed: ${addedCount} added, ${updatedCount} updated, ${deletedCount} deleted`);
-
     } catch (error) {
-      this.logger.error(`Google Calendar sync failed: ${error.message}`);
       throw error;
     }
   }
@@ -242,11 +195,9 @@ export class EventsService {
         const data = doc.data();
 
         if (!data) {
-          this.logger.warn(`Document ${doc.id} has no data`);
           return;
         }
 
-        // Convert Firebase timestamps to proper dates
         let startDate = data.startDate;
         let endDate = data.endDate;
 
@@ -270,10 +221,8 @@ export class EventsService {
         } as Event);
       });
 
-      this.logger.log(`Retrieved ${events.length} events for user: ${userId}`);
       return events;
     } catch (error) {
-      this.logger.error(`Failed to fetch events: ${error.message}`);
       throw error;
     }
   }
@@ -290,11 +239,9 @@ export class EventsService {
     const data = doc.data();
 
     if (!data) {
-      this.logger.warn(`Document ${doc.id} exists but has no data`);
       return null;
     }
 
-    // Convert Firebase timestamps to proper dates
     let startDate = data.startDate;
     let endDate = data.endDate;
 
