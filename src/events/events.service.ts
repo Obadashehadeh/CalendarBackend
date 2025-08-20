@@ -15,6 +15,11 @@ export class EventsService {
   ) {}
 
   async createEvent(createEventDto: CreateEventDto, accessToken?: string): Promise<Event> {
+    console.log('🎯 EventsService.createEvent called');
+    console.log('📝 Event data:', createEventDto);
+    console.log('🔑 Access token received:', accessToken ? 'YES' : 'NO');
+    console.log('🔑 Token value:', accessToken);
+
     const db = this.firebaseService.getFirestore();
     const eventsCollection = db.collection(this.collectionName);
 
@@ -27,20 +32,33 @@ export class EventsService {
       isDeleted: false,
     };
 
+    console.log('💾 Saving to Firebase...');
     const docRef = await eventsCollection.add(event);
+    console.log('✅ Saved to Firebase with ID:', docRef.id);
+
     const eventWithId = { ...event, id: docRef.id };
 
+    // Google Calendar sync
     if (accessToken) {
+      console.log('🔄 Attempting Google Calendar sync...');
       try {
+        console.log('📤 Calling Google Calendar API...');
         const googleEventId = await this.googleCalendarService.createGoogleEvent(
           eventWithId,
           accessToken,
         );
+        console.log('✅ Google Calendar event created with ID:', googleEventId);
+
         await docRef.update({ googleCalendarId: googleEventId });
         eventWithId.googleCalendarId = googleEventId;
+        console.log('✅ Updated Firebase with Google Calendar ID');
       } catch (error) {
-        console.error('Failed to sync to Google Calendar:', error);
+        console.error('❌ Google Calendar sync failed:', error);
+        console.error('❌ Error details:', error.message);
+        console.error('❌ Full error:', error);
       }
+    } else {
+      console.log('⚠️ No access token - skipping Google sync');
     }
 
     return eventWithId;
@@ -51,11 +69,16 @@ export class EventsService {
     updateEventDto: UpdateEventDto,
     accessToken?: string,
   ): Promise<Event | null> {
+    console.log('🔄 EventsService.updateEvent called');
+    console.log('📝 Update data:', updateEventDto);
+    console.log('🔑 Access token:', accessToken ? 'YES' : 'NO');
+
     const db = this.firebaseService.getFirestore();
     const docRef = db.collection(this.collectionName).doc(id);
 
     const doc = await docRef.get();
     if (!doc.exists) {
+      console.log('❌ Event not found:', id);
       return null;
     }
 
@@ -74,8 +97,10 @@ export class EventsService {
     }
 
     await docRef.update(updateData);
+    console.log('✅ Updated in Firebase');
 
     if (currentEvent.googleCalendarId && accessToken) {
+      console.log('🔄 Updating in Google Calendar...');
       try {
         const updatedEvent = { ...currentEvent, ...updateData };
         await this.googleCalendarService.updateGoogleEvent(
@@ -83,8 +108,9 @@ export class EventsService {
           updatedEvent,
           accessToken,
         );
+        console.log('✅ Updated in Google Calendar');
       } catch (error) {
-        console.error('Failed to sync update to Google Calendar:', error);
+        console.error('❌ Google Calendar update failed:', error);
       }
     }
 
@@ -93,6 +119,9 @@ export class EventsService {
   }
 
   async deleteEvent(id: string, accessToken?: string): Promise<boolean> {
+    console.log('🗑️ EventsService.deleteEvent called');
+    console.log('🔑 Access token:', accessToken ? 'YES' : 'NO');
+
     const db = this.firebaseService.getFirestore();
     const docRef = db.collection(this.collectionName).doc(id);
 
@@ -107,15 +136,18 @@ export class EventsService {
       isDeleted: true,
       updatedAt: new Date(),
     });
+    console.log('✅ Marked as deleted in Firebase');
 
     if (event.googleCalendarId && accessToken) {
+      console.log('🔄 Deleting from Google Calendar...');
       try {
         await this.googleCalendarService.deleteGoogleEvent(
           event.googleCalendarId,
           accessToken,
         );
+        console.log('✅ Deleted from Google Calendar');
       } catch (error) {
-        console.error('Failed to delete from Google Calendar:', error);
+        console.error('❌ Google Calendar delete failed:', error);
       }
     }
 
@@ -123,11 +155,16 @@ export class EventsService {
   }
 
   async syncFromGoogleCalendar(userId: string, accessToken: string): Promise<void> {
+    console.log('🔄 Syncing from Google Calendar...');
+    console.log('👤 User ID:', userId);
+    console.log('🔑 Access token:', accessToken ? 'YES' : 'NO');
+
     try {
       const googleEvents = await this.googleCalendarService.fetchGoogleEvents(
         accessToken,
         userId,
       );
+      console.log('📥 Fetched from Google:', googleEvents.length, 'events');
 
       const db = this.firebaseService.getFirestore();
       const eventsCollection = db.collection(this.collectionName);
@@ -139,12 +176,13 @@ export class EventsService {
           .get();
 
         if (existingEvent.empty) {
+          console.log('➕ Adding new Google event:', googleEvent.title);
           await eventsCollection.add(googleEvent);
         } else {
+          console.log('🔄 Updating existing Google event:', googleEvent.title);
           const existingDoc = existingEvent.docs[0];
           const existingData = existingDoc.data() as Event;
 
-          // Fix: Safe date comparison with fallback
           const googleEventDate = googleEvent.updatedAt || new Date(0);
           const existingEventDate = existingData.updatedAt || new Date(0);
 
@@ -156,8 +194,9 @@ export class EventsService {
           }
         }
       }
+      console.log('✅ Google Calendar sync completed');
     } catch (error) {
-      console.error('Error syncing from Google Calendar:', error);
+      console.error('❌ Google Calendar sync failed:', error);
       throw error;
     }
   }
@@ -170,7 +209,6 @@ export class EventsService {
       const snapshot = await eventsCollection
         .where('userId', '==', userId)
         .where('isDeleted', '==', false)
-        .orderBy('startDate', 'asc')
         .get();
 
       const events: Event[] = [];
@@ -183,7 +221,6 @@ export class EventsService {
 
       return events;
     } catch (error) {
-      console.error('❌ Error in findAllEvents:', error);
       throw error;
     }
   }
