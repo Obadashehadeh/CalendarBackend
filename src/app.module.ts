@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FirebaseService } from './firebase/firebase.service';
 import { EventsModule } from './events/events.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -11,7 +12,8 @@ import { EventsModule } from './events/events.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    EventsModule, // Add the Events module
+    EventsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, FirebaseService],
