@@ -7,6 +7,9 @@ import { PassportModule } from '@nestjs/passport';
 @Module({
   imports: [PassportModule],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy],
+  providers: [
+    AuthService,
+    GoogleStrategy,
+  ],
 })
 export class AuthModule {}

@@ -27,19 +27,15 @@ export class EventsService {
       isDeleted: false,
     };
 
-    // Create in Firebase first
     const docRef = await eventsCollection.add(event);
     const eventWithId = { ...event, id: docRef.id };
 
-    // Sync to Google Calendar if user is authenticated
     if (accessToken) {
       try {
         const googleEventId = await this.googleCalendarService.createGoogleEvent(
           eventWithId,
           accessToken,
         );
-
-        // Update Firebase with Google Calendar ID
         await docRef.update({ googleCalendarId: googleEventId });
         eventWithId.googleCalendarId = googleEventId;
       } catch (error) {
@@ -79,7 +75,6 @@ export class EventsService {
 
     await docRef.update(updateData);
 
-    // Sync to Google Calendar if linked
     if (currentEvent.googleCalendarId && accessToken) {
       try {
         const updatedEvent = { ...currentEvent, ...updateData };
@@ -113,7 +108,6 @@ export class EventsService {
       updatedAt: new Date(),
     });
 
-    // Delete from Google Calendar if linked
     if (event.googleCalendarId && accessToken) {
       try {
         await this.googleCalendarService.deleteGoogleEvent(
@@ -150,7 +144,11 @@ export class EventsService {
           const existingDoc = existingEvent.docs[0];
           const existingData = existingDoc.data() as Event;
 
-          if (googleEvent.updatedAt > existingData.updatedAt) {
+          // Fix: Safe date comparison with fallback
+          const googleEventDate = googleEvent.updatedAt || new Date(0);
+          const existingEventDate = existingData.updatedAt || new Date(0);
+
+          if (googleEventDate > existingEventDate) {
             await existingDoc.ref.update({
               ...googleEvent,
               updatedAt: new Date(),
@@ -164,7 +162,6 @@ export class EventsService {
     }
   }
 
-  // ... keep your existing methods (findAllEvents, findEventById, etc.)
   async findAllEvents(userId: string): Promise<Event[]> {
     try {
       const db = this.firebaseService.getFirestore();

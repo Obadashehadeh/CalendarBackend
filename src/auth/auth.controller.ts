@@ -12,18 +12,19 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req, @Res() res) {
-    // Handle the callback from Google
     const user = req.user;
 
-    // Store user info and tokens (you might want to use sessions or JWT)
-    // For now, we'll redirect with user info
+    // Redirect to frontend with access token
     res.redirect(
       `http://localhost:3001/auth/success?token=${user.accessToken}&userId=${user.email}`,
     );
   }
 
-  @Get('profile')
-  getProfile(@Req() req) {
-    return req.user;
+  @Get('status')
+  getStatus() {
+    return {
+      message: 'Auth module ready',
+      googleAuth: 'Google OAuth enabled ✅',
+    };
   }
 }

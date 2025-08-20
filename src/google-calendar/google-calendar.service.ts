@@ -7,7 +7,6 @@ import { Event } from '../events/event.interface';
 export class GoogleCalendarService {
   constructor(private configService: ConfigService) {}
 
-  // Convert our event to Google Calendar format
   private toGoogleEvent(event: Event) {
     return {
       summary: event.title,
@@ -23,7 +22,6 @@ export class GoogleCalendarService {
     };
   }
 
-  // Convert Google Calendar event to our format
   private fromGoogleEvent(googleEvent: any, userId: string): Event {
     return {
       title: googleEvent.summary || 'Untitled',
@@ -48,6 +46,11 @@ export class GoogleCalendarService {
       calendarId: 'primary',
       requestBody: this.toGoogleEvent(event),
     });
+
+    // Fix: Handle potentially undefined response.data.id
+    if (!response.data.id) {
+      throw new Error('Failed to create Google Calendar event: No ID returned');
+    }
 
     return response.data.id;
   }

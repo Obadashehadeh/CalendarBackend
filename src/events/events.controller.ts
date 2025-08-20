@@ -136,4 +136,30 @@ export class EventsController {
       );
     }
   }
+
+  @Post('sync')
+  async syncFromGoogle(
+    @Query('userId') userId: string,
+    @Query('accessToken') accessToken: string,
+  ) {
+    if (!userId || !accessToken) {
+      throw new HttpException(
+        'userId and accessToken are required',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    try {
+      await this.eventsService.syncFromGoogleCalendar(userId, accessToken);
+      return {
+        success: true,
+        message: 'Events synced from Google Calendar successfully',
+      };
+    } catch (error) {
+      throw new HttpException(
+        'Failed to sync from Google Calendar',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
